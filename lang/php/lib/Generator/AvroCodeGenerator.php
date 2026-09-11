@@ -24,6 +24,7 @@ namespace Apache\Avro\Generator;
 
 use Apache\Avro\Schema\AvroArraySchema;
 use Apache\Avro\Schema\AvroEnumSchema;
+use Apache\Avro\Schema\AvroField;
 use Apache\Avro\Schema\AvroMapSchema;
 use Apache\Avro\Schema\AvroNamedSchema;
 use Apache\Avro\Schema\AvroPrimitiveSchema;
@@ -126,7 +127,13 @@ class AvroCodeGenerator
         $className = $this->classNameForSchema($avroRecord);
         $class = $this->factory->class($className)->makeFinal()->implement('\\JsonSerializable');
 
-        foreach ($avroRecord->fields() as $field) {
+        $fields = $avroRecord->fields();
+        usort(
+            $fields,
+            static fn (AvroField $a, AvroField $b): int => $a->hasDefaultValue() <=> $b->hasDefaultValue()
+        );
+
+        foreach ($fields as $field) {
             $phpType = $this->avroTypeToPhp($field->type(), $phpNamespace);
             $property = $this->factory->property($field->name())
                 ->makePrivate()
@@ -146,7 +153,7 @@ class AvroCodeGenerator
 
         $constructor = $this->factory->method('__construct')->makePublic();
         $constructorParamDocs = [];
-        foreach ($avroRecord->fields() as $field) {
+        foreach ($fields as $field) {
             $phpType = $this->avroTypeToPhp($field->type(), $phpNamespace);
             $param = $this->factory->param($field->name())->setType($phpType);
             if ($field->hasDefaultValue()) {
